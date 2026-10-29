@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A private, browser-first research assistant for understanding PDF documents with evidence and page citations." />
+    <meta name="theme-color" content="#172033" />
+    <title>AI Research Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="AI Research Assistant home">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span>AI Research Assistant</span>
+        </a>
+        <div class="topbar-meta"><span class="status-dot"></span><span>Private by default</span><span class="meta-divider"></span><span>Built for careful reading</span></div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">DOCUMENT INTELLIGENCE / 01</p>
+            <h1>Find the signal<br /><em>inside the pages.</em></h1>
+            <p class="hero-lede">Upload a research PDF, get oriented quickly, then ask questions with the exact passages that support each answer.</p>
+          </div>
+          <div class="hero-note">
+            <span class="note-number">A</span>
+            <p>No account. No paid API. Your document is processed in this browser session.</p>
+          </div>
+        </section>
+
+        <section class="workspace-grid" aria-label="Research workspace">
+          <aside class="control-rail">
+            <div class="rail-label">START HERE</div>
+            <label class="dropzone" id="dropzone" for="fileInput" tabindex="0">
+              <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden />
+              <span class="upload-icon" aria-hidden="true">↑</span>
+              <span class="drop-title">Drop a PDF here</span>
+              <span class="drop-subtitle">or <u>browse your files</u></span>
+              <span class="drop-limit">PDF only · max 25 MB · max 500 pages</span>
+            </label>
+            <div id="processingStatus" class="processing-status" role="status" aria-live="polite" hidden></div>
+
+            <div id="documentCard" class="document-card" hidden>
+              <div class="card-kicker">CURRENT DOCUMENT</div>
+              <div class="document-name" id="documentName"></div>
+              <div class="document-stats" id="documentStats"></div>
+              <div class="index-status"><span class="status-dot"></span><span id="retrievalMode">Browser retrieval ready</span></div>
+            </div>
+
+            <button class="outline-button" id="newSessionButton" type="button">↻ <span>Start new session</span></button>
+
+            <div class="rail-guide">
+              <div class="rail-label">HOW IT WORKS</div>
+              <ol>
+                <li><span>01</span> Extract text and page numbers</li>
+                <li><span>02</span> Rank the most relevant passages</li>
+                <li><span>03</span> Show answers with evidence</li>
+              </ol>
+            </div>
+
+            <details class="privacy-details">
+              <summary>Privacy & model notes</summary>
+              <p>Files stay in memory during this browser session. The core workflow uses browser-side extraction and retrieval. A hosted LLM is not required. For richer generation, connect a local Ollama/Llama setup in the original Python application.</p>
+            </details>
+          </aside>
+
+          <section class="main-panel">
+            <div id="emptyState" class="empty-state">
+              <div class="empty-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+              <p class="eyebrow">YOUR READING DESK</p>
+              <h2>Bring one document.<br />Leave with a point of view.</h2>
+              <p>Start by uploading a selectable-text PDF. The assistant will keep page context attached as you explore.</p>
+              <div class="empty-features"><span>Page-aware</span><span>Evidence-first</span><span>Session-only</span></div>
+            </div>
+
+            <div id="documentWorkspace" hidden>
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">WORKSPACE / <span id="workspaceDocLabel">CURRENT FILE</span></p>
+                  <h2 id="workspaceHeading">Read the document your way.</h2>
+                </div>
+                <div class="mode-badge" id="modelStatus">Browser fallback active</div>
+              </div>
+              <nav class="tabs" aria-label="Document tools">
+                <button class="tab active" data-tab="summary" type="button">Summary</button>
+                <button class="tab" data-tab="ask" type="button">Ask questions</button>
+                <button class="tab" data-tab="details" type="button">Document details</button>
+              </nav>
+
+              <section class="tab-panel" id="summaryPanel" data-panel="summary">
+                <div class="section-intro"><div><span class="section-index">01</span><h3>Get the shape of it.</h3></div><p>A useful first pass that keeps the document’s important claims and caveats in view.</p></div>
+                <div class="summary-controls"><div class="segmented" role="group" aria-label="Summary length"><button class="segment active" data-summary-length="concise" type="button">Concise</button><button class="segment" data-summary-length="detailed" type="button">Detailed</button></div><button class="primary-button" id="generateSummary" type="button">Generate summary <span>→</span></button></div>
+                <div id="summaryResult" class="result-card muted-result"><div class="result-placeholder"><span class="placeholder-mark">✦</span><span>Select a length, then generate a grounded overview.</span></div></div>
+              </section>
+
+              <section class="tab-panel" id="askPanel" data-panel="ask" hidden>
+                <div class="section-intro"><div><span class="section-index">02</span><h3>Interrogate the evidence.</h3></div><p>Ask a document-specific question. Answers only use passages that were found in your file.</p></div>
+                <div id="chatHistory" class="chat-history"><div class="chat-empty"><span>↳</span><p>Your questions and cited answers will appear here.</p></div></div>
+                <form id="questionForm" class="question-form"><label for="questionInput" class="sr-only">Ask a question about this document</label><textarea id="questionInput" rows="2" placeholder="e.g. What limitation do the authors acknowledge?" required></textarea><button class="send-button" type="submit" aria-label="Ask question">↑</button></form>
+                <p class="form-note">Press Enter to ask · Shift + Enter for a new line</p>
+              </section>
+
+              <section class="tab-panel" id="detailsPanel" data-panel="details" hidden>
+                <div class="section-intro"><div><span class="section-index">03</span><h3>Know what is in scope.</h3></div><p>These details make the assistant’s evidence boundary visible before you rely on an answer.</p></div>
+                <div class="detail-grid" id="detailGrid"></div>
+                <div class="limitation-callout"><strong>Accuracy note</strong><p>Browser retrieval is intentionally transparent and lightweight. It will not invent a page number, and it will say when it cannot find enough evidence. Tables, figures, scans, and complex layouts may need OCR or manual review.</p></div>
+              </section>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <footer class="site-footer"><span>AI RESEARCH ASSISTANT</span><span>Local-first reading tools for students, researchers, and working teams.</span><span>v1.0 / EVIDENCE OVER FLUENCY</span></footer>
+    </div>
+    <div id="toast" class="toast" role="alert" aria-live="assertive" hidden></div>
+  </body>
+</html>

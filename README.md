@@ -1,0 +1,1 @@
+The evaluation script creates a temporary two-page sample PDF at runtime so the repository does not need to retain user-like document content. Run `../.venv/bin/python ../evaluation.py` from this directory or `python evaluation.py` from the project root.
